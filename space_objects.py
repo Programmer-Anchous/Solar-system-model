@@ -5,9 +5,10 @@ from tools import *
 
 
 class Object:
-    def __init__(self, screen: pygame.Surface, radius: int | float, filepath: str):
+    def __init__(self, screen: pygame.Surface, radius: int | float, filepath: str, rotation_speed: int | float, name: str):
         self.screen = screen
         self.radius = radius
+        self.name = name
 
         self.image = load_image(filepath)
         size = self.image.get_width()
@@ -23,19 +24,32 @@ class Object:
 
         self.current_image = self.get_scaled_image()
 
+        self.is_draw_trajectory = True
+
+        self.rotation = 0
+        self.rotation_speed = rotation_speed
+
     def update(self):
-        if len(self.trajectory) >= self.trajectory_points_limit:
-            del self.trajectory[: -self.trajectory_points_limit]
+        if self.is_draw_trajectory:
+            if len(self.trajectory) >= self.trajectory_points_limit:
+                del self.trajectory[: -self.trajectory_points_limit]
 
     def draw(self, offset_x, offset_y, x, y):
-        self.trajectory.append((x, y))
-        scaled_radius = self.radius * self.scale
+        if self.is_draw_trajectory:
+            self.trajectory.append((x, y))
+
+        rotated_image = pygame.transform.rotate(self.current_image, self.rotation)
+        offset = rotated_image.get_width() // 2
+        self.rotation += self.rotation_speed
+        if self.rotation > 360:
+            self.rotation %= 360
+        
         coords = (
-            x + offset_x - scaled_radius,
-            y + offset_y - scaled_radius,
+            x + offset_x - offset,
+            y + offset_y - offset,
         )
         self.screen.blit(
-            self.current_image,
+            rotated_image,
             coords,
         )
     
@@ -65,6 +79,9 @@ class Object:
 
     def clear_trajectory(self):
         self.trajectory.clear()
+    
+    def set_trajectory_visible(self, status):
+        self.is_draw_trajectory = status
 
 
 class MovingObject(Object):
@@ -73,11 +90,13 @@ class MovingObject(Object):
         screen: pygame.Surface,
         radius: int | float,
         filepath: str,
+        rotation_speed: int | float,
+        name: str,
         movement_radius: int | float,
         angle: int | float,
         main_object: Object,
     ):
-        super().__init__(screen, radius, filepath)
+        super().__init__(screen, radius, filepath, rotation_speed, name)
         self.movement_radius = movement_radius
         self.angle = angle
         self.main_object = main_object
@@ -89,18 +108,29 @@ class MovingObject(Object):
         self.current_image = self.get_scaled_image()
 
     def update(self):
-        if len(self.trajectory) >= self.trajectory_points_limit:
-            del self.trajectory[: -self.trajectory_points_limit]
+        if self.is_draw_trajectory:
+            if len(self.trajectory) >= self.trajectory_points_limit:
+                del self.trajectory[: -self.trajectory_points_limit]
         self.vec.rotate(self.angle)
 
     def draw(self, offset_x, offset_y, x, y):
         main_x, main_y = self.get_offsets()
-        res_x, res_y = (main_x - x, main_y - y)
-        self.trajectory.append((res_x, res_y))
+        res_x, res_y = (x - main_x, y - main_y)
+        if self.is_draw_trajectory:
+            self.trajectory.append((res_x, res_y))
+        
+        rotated_image = pygame.transform.rotate(self.current_image, self.rotation)
+        offset = rotated_image.get_width() // 2
+        self.rotation += self.rotation_speed
+        if self.rotation > 360:
+            self.rotation %= 360
 
         self.screen.blit(
-            self.current_image,
-            (res_x + offset_x - self.radius * self.scale, res_y + offset_y - self.radius * self.scale),
+            rotated_image,
+            (
+                res_x + offset_x - offset,
+                res_y + offset_y - offset
+            )
         )
     
     def get_scaled_image(self):
@@ -134,8 +164,11 @@ class Camera:
 
         self.camera_offset_x, self.camera_offset_y = 0, 0
 
+        self.is_draw_trajectory = True
+
     def __call__(self, obj):
-        obj.draw_trajectory(self.x_offset, self.y_offset)
+        if self.is_draw_trajectory:
+            obj.draw_trajectory(self.x_offset, self.y_offset)
         obj.draw(self.x_offset, self.y_offset, self.x, self.y)
 
     def update(self):
@@ -150,6 +183,12 @@ class Camera:
 
         self.camera_offset_x -= x_movement
         self.camera_offset_y -= y_movement
+    
+    def set_trajectory_visible(self, status):
+        self.is_draw_trajectory = status
+    
+    def set_main_object(self, obj):
+        self.main_object = obj
 
 
 class Objects:
@@ -160,6 +199,8 @@ class Objects:
         self.min_zoom = 0.01
         self.max_zoom = 40
 
+        self.is_draw_trajectory = True
+
     def update(self):
         for obj in self.objects:
             obj.set_scale(self.zoom)
@@ -168,8 +209,6 @@ class Objects:
             obj.update()
 
         self.camera.update()
-
-        
 
         for obj in self.objects:
             self.camera(obj)
@@ -191,3 +230,18 @@ class Objects:
     def clear_trajectories(self):
         for obj in self.objects:
             obj.clear_trajectory()
+    
+    def change_trajectory_visible(self):
+        self.is_draw_trajectory = not self.is_draw_trajectory
+
+        self.is_draw_trajectory = self.is_draw_trajectory
+        self.camera.set_trajectory_visible(self.is_draw_trajectory)
+        for obj in self.objects:
+            obj.set_trajectory_visible(self.is_draw_trajectory)
+
+        if self.is_draw_trajectory is False:
+            self.clear_trajectories()
+    
+    def set_main_object(self, num):
+        self.camera.set_main_object(self.objects[num])
+        self.clear_trajectories()
