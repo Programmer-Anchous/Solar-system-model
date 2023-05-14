@@ -2,6 +2,7 @@ import pygame
 import sys
 
 from space_objects import *
+from tools import *
 
 
 pygame.init()
@@ -18,9 +19,36 @@ rotate_speed = 365
 length = 1
 
 sun = Object(screen, 15, "data/sun.png", rotate_speed / 3600, "Sun")
-earth = MovingObject(screen, 8, "data/earth.png", rotate_speed / 80, "Earth", length * 151, rotate_speed / 365, sun)
-mars = MovingObject(screen, 8, "data/mars.png", rotate_speed / 70, "Mars", length * 250, rotate_speed / 687, sun)
-moon = MovingObject(screen, 4, "data/moon.png", rotate_speed / 20, "Moon", length * 40, rotate_speed / 30, earth)
+earth = MovingObject(
+    screen,
+    8,
+    "data/earth.png",
+    rotate_speed / 80,
+    "Earth",
+    length * 151,
+    rotate_speed / 365,
+    sun,
+)
+mars = MovingObject(
+    screen,
+    8,
+    "data/mars.png",
+    rotate_speed / 70,
+    "Mars",
+    length * 250,
+    rotate_speed / 687,
+    sun,
+)
+moon = MovingObject(
+    screen,
+    4,
+    "data/moon.png",
+    rotate_speed / 20,
+    "Moon",
+    length * 40,
+    rotate_speed / 30,
+    earth,
+)
 
 objects = Objects((H_WIDTH, H_HEIGHT), sun, earth, mars, moon)
 
@@ -33,53 +61,128 @@ class Panel:
     def __init__(self, screen, width, objects):
         self.screen = screen
         self.width = width
+        self.screen_size = self.screen.get_size()
         self.objects = objects
 
         self.image = pygame.Surface((width, screen.get_height()))
-        self.image.set_alpha(150)
+        self.image.set_alpha(170)
 
-        self.objects_dict = {obj.name: obj for obj in self.objects.objects}
+        self.half_button_background = pygame.Surface((15, 100))
+        self.half_button_background.set_alpha(170)
+        pygame.draw.rect(
+            self.half_button_background, (1, 1, 1), (0, 1, 14, 98), 0, -1, -1, 5, -1, 5
+        )
+        self.half_button_background.set_colorkey((0, 0, 0))
+
+        self.button_background = pygame.Surface((30, 100))
+        self.button_background.set_alpha(170)
+        pygame.draw.rect(self.button_background, (1, 1, 1), (1, 1, 28, 98), 0, 5)
+        self.button_background.set_colorkey((0, 0, 0))
 
         self.buttons = list()
         for i, obj in enumerate(self.objects.objects):
-            button = TextButton(screen, obj.name, (20, i * 40 + 100))
+            button = TextButton(screen, obj.name, (20, i * 40 + 200))
             self.buttons.append(button)
 
         self.is_opened = False
 
-        image = pygame.Surface((30, 100))
-        image.set_colorkey((0, 0, 0))
-        image_pressed = image.copy()
-        pygame.draw.polygon(image, (200,) * 3, ((4, 10), (30, 50), (4, 90)))
-        pygame.draw.polygon(image_pressed, (240,) * 3, ((4, 10), (30, 50), (4, 90)))
-        self.open_button = Button(screen, image, image_pressed, (15, self.screen.get_height() // 2), True)
+        self.draw_trajectory_button = TextButton(
+            self.screen, "draw trajectory", (20, 30)
+        )
+
+        self.speed_label = pygame.font.Font(None, 32).render("speed", True, (200,) * 3)
+        self.speed_slider = Slider(self.screen, (self.width // 2, 140), (210, 15))
+        self.speed_slider.set_value(1 / 1.5)
+
+        self.exit_button = TextButton(
+            self.screen, "exit", (20, self.screen_size[1] - 30)
+        )
 
         image = pygame.Surface((30, 100))
         image.set_colorkey((0, 0, 0))
         image_pressed = image.copy()
-        pygame.draw.polygon(image, (200,) * 3, ((30, 10), (4, 50), (30, 90)))
-        pygame.draw.polygon(image_pressed, (240,) * 3, ((30, 10), (4, 50), (30, 90)))
-        self.close_button = Button(screen, image, image_pressed, (self.width - 15, self.screen.get_height() // 2), True)
-    
+        points = ((10, 30), (22, 50), (10, 70))
+        pygame.draw.polygon(image, (200,) * 3, points)
+        pygame.draw.polygon(image_pressed, (240,) * 3, points)
+        rect_values = ((1, 1, 28, 98), 2, 5)
+        pygame.draw.rect(image, (200,) * 3, *rect_values)
+        pygame.draw.rect(image_pressed, (240,) * 3, *rect_values)
+        self.open_button = Button(
+            screen, image, image_pressed, (15, self.screen_size[1] // 2), True
+        )
+
+        image = pygame.Surface((30, 100))
+        image.set_colorkey((0, 0, 0))
+        image_pressed = image.copy()
+        points = ((20, 30), (8, 50), (20, 70))
+        pygame.draw.polygon(image, (200,) * 3, points)
+        pygame.draw.polygon(image_pressed, (240,) * 3, points)
+        pygame.draw.rect(image, (200,) * 3, *rect_values)
+        pygame.draw.rect(image_pressed, (240,) * 3, *rect_values)
+
+        self.close_button = Button(
+            screen, image, image_pressed, (self.width, self.screen_size[1] // 2), True
+        )
+
     def update(self, mouse_pos, clicked):
+        change_visibility = False
+        speed = False
+        is_exit = False
         if self.is_opened:
-            self.screen.blit(self.image, (0, 0))
+            surf = blur(self.get_sub_surf(), 15)
+            surf.blit(self.image, (0, 0))
+            self.screen.blit(surf, (0, 0))
+            self.screen.blit(
+                self.half_button_background, (self.width, self.screen_size[1] // 2 - 50)
+            )
+
             for i, button in enumerate(self.buttons):
                 button.update(mouse_pos, clicked)
                 if button.triggered():
                     self.objects.set_main_object(i)
-            
+
+            self.screen.blit(self.speed_label, (20, 100))
+            self.speed_slider.update(clicked, mouse_pos)
+            speed = self.speed_slider.get_value()
+
+            self.draw_trajectory_button.update(mouse_pos, clicked)
+            if self.draw_trajectory_button.triggered():
+                change_visibility = True
+
             self.close_button.update(mouse_pos, clicked)
             if self.close_button.triggered():
                 self.is_opened = False
+
+            self.exit_button.update(mouse_pos, clicked)
+            if self.exit_button.triggered():
+                is_exit = True
+
+            pygame.draw.line(
+                self.screen,
+                (200,) * 3,
+                (self.width, 0),
+                (self.width, self.screen_size[1] // 2 - 50),
+            )
+            pygame.draw.line(
+                self.screen,
+                (200,) * 3,
+                (self.width, self.screen_size[1] // 2 + 49),
+                (self.width, self.screen_size[1]),
+            )
         else:
+            self.screen.blit(self.button_background, (0, self.screen_size[1] // 2 - 50))
             self.open_button.update(mouse_pos, clicked)
             if self.open_button.triggered():
                 self.is_opened = True
-    
+        return change_visibility, speed, is_exit
+
     def mouse_in_panel(self, mouse_pos):
-        return mouse_pos[0] < self.width
-        
+        return panel.is_opened and mouse_pos[0] < self.width
+
+    def get_sub_surf(self):
+        sub = self.screen.subsurface((0, 0, self.width, self.screen_size[1]))
+        return sub
+
 
 panel = Panel(screen, 250, objects)
 
@@ -99,7 +202,7 @@ while True:
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
-        
+
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_1:
                 objects.change_trajectory_visible()
@@ -114,14 +217,21 @@ while True:
 
         if event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:
+                panel.speed_slider.release()
                 is_drag = False
 
-    if clicked and not (panel.mouse_in_panel(mouse_pos)):
+    if clicked and not panel.mouse_in_panel(mouse_pos):
         is_drag = True
-    
-    objects.update()
-    panel.update(mouse_pos, clicked)
 
-    # print(clock.get_fps())
+    objects.update()
+    change_visibility, speed, is_exit = panel.update(mouse_pos, clicked)
+    if change_visibility:
+        objects.change_trajectory_visible()
+    if speed:
+        objects.set_speed(speed * 1.5)
+    if is_exit:
+        pygame.quit()
+        sys.exit()
+
     pygame.display.update()
     clock.tick(FPS)
