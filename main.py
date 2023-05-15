@@ -15,15 +15,43 @@ screen = pygame.display.set_mode(W_SIZE, pygame.FULLSCREEN)
 clock = pygame.time.Clock()
 FPS = 60
 
-rotate_speed = 365
-length = 1
+rotate_speed = 500
+length = 10
 
-sun = Object(screen, 15, "data/sun.png", rotate_speed / 3600, "Sun")
+radius = 1 / 100
+
+sun = Object(
+    screen,
+    radius * 40000,
+    "data/sun.png",
+    rotate_speed / 3600,
+    "Sun"
+)
+mercury = MovingObject(
+    screen,
+    radius * 2439,
+    "data/mercury.png",
+    rotate_speed / 80,
+    "Mercury",
+    length * 70,
+    rotate_speed / 88,
+    sun,
+)
+venus = MovingObject(
+    screen,
+    radius * 6051,
+    "data/venus.png",
+    rotate_speed / 80,
+    "Venus",
+    length * 108,
+    rotate_speed / 224,
+    sun,
+)
 earth = MovingObject(
     screen,
-    8,
+    radius * 6371,
     "data/earth.png",
-    rotate_speed / 80,
+    rotate_speed / 365,
     "Earth",
     length * 151,
     rotate_speed / 365,
@@ -31,7 +59,7 @@ earth = MovingObject(
 )
 mars = MovingObject(
     screen,
-    8,
+    radius * 3389,
     "data/mars.png",
     rotate_speed / 70,
     "Mars",
@@ -39,9 +67,49 @@ mars = MovingObject(
     rotate_speed / 687,
     sun,
 )
+jupiter = MovingObject(
+    screen,
+    radius * 40000,
+    "data/jupiter.png",
+    rotate_speed / 70,
+    "Jupiter",
+    length * 741,
+    rotate_speed / 4329,
+    sun,
+)
+saturn = MovingObject(
+    screen,
+    radius * 30000,
+    "data/saturn.png",
+    rotate_speed / 70,
+    "Saturn",
+    length * 1464,
+    rotate_speed / 10768,
+    sun,
+)
+uranus = MovingObject(
+    screen,
+    radius * 21000,
+    "data/uranus.png",
+    rotate_speed / 70,
+    "Uranus",
+    length * 2938,
+    rotate_speed / 30660,
+    sun,
+)
+neptune = MovingObject(
+    screen,
+    radius * 20000,
+    "data/neptune.png",
+    rotate_speed / 70,
+    "Neptune",
+    length * 4473,
+    rotate_speed / 59860,
+    sun,
+)
 moon = MovingObject(
     screen,
-    4,
+    radius * 1737,
     "data/moon.png",
     rotate_speed / 20,
     "Moon",
@@ -50,7 +118,7 @@ moon = MovingObject(
     earth,
 )
 
-objects = Objects((H_WIDTH, H_HEIGHT), sun, earth, mars, moon)
+objects = Objects((H_WIDTH, H_HEIGHT), sun, mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, moon)
 
 mouse_pos = mx, my = 0, 0
 is_drag = False
@@ -205,7 +273,7 @@ while True:
 
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_1:
-                objects.change_trajectory_visible()
+                objects.camera.set_offsets((H_WIDTH, H_HEIGHT))
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:

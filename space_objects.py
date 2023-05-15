@@ -47,14 +47,15 @@ class Object:
             self.trajectory.append((x, y))
 
         rotated_image = pygame.transform.rotate(self.current_image, self.rotation)
-        offset = rotated_image.get_width() // 2
+        obj_offset_x = rotated_image.get_width() // 2
+        obj_offset_y = rotated_image.get_height() // 2
         self.rotation += self.current_rotation_speed
         if self.rotation > 360:
             self.rotation %= 360
 
         coords = (
-            x + offset_x - offset,
-            y + offset_y - offset,
+            x + offset_x - obj_offset_x,
+            y + offset_y - obj_offset_y,
         )
         self.screen.blit(
             rotated_image,
@@ -131,23 +132,28 @@ class MovingObject(Object):
         res_x, res_y = (x - main_x, y - main_y)
         if self.is_draw_trajectory:
             self.trajectory.append((res_x, res_y))
-
         rotated_image = pygame.transform.rotate(self.current_image, self.rotation)
-        offset = rotated_image.get_width() // 2
+        obj_offset_x = rotated_image.get_width() // 2
+        obj_offset_y = rotated_image.get_height() // 2
         self.rotation += self.current_rotation_speed
         if self.rotation > 360:
             self.rotation %= 360
-
+        
+        coords = (res_x + offset_x - obj_offset_x, res_y + offset_y - obj_offset_y)
         self.screen.blit(
-            rotated_image, (res_x + offset_x - offset, res_y + offset_y - offset)
+            rotated_image, coords
         )
 
     def get_scaled_image(self):
+        scale_x = self.image.get_width() * self.scale_factor * self.scale
+        scale_y = self.image.get_height() * self.scale_factor * self.scale
+        if scale_x > 1000:
+            scale_x = scale_y = 1000
         img = pygame.transform.scale(
             self.image,
             (
-                self.image.get_width() * self.scale_factor * self.scale,
-                self.image.get_height() * self.scale_factor * self.scale,
+                scale_x,
+                scale_y,
             ),
         )
         return img
@@ -210,7 +216,7 @@ class Objects:
         self.camera = Camera(self.objects[0], offsets)
         self.zoom = 1
         self.min_zoom = 0.01
-        self.max_zoom = 40
+        self.max_zoom = 10
 
         self.is_draw_trajectory = True
         self.change_trajectory_visible()
